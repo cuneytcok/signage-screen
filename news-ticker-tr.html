@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Türkçe Haber Manşet Ticker</title>
+<style>
+  :root{--bg:#0b1220;--panel:#0f172a;--fg:#e2e8f0;--muted:#94a3b8;--accent:#22d3ee}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+  .wrap{display:flex;flex-direction:column;height:100%}
+  .head{display:flex;justify-content:space-between;align-items:center;background:var(--panel);padding:12px 18px;border-bottom:2px solid #1e293b}
+  .clock{font-variant-numeric:tabular-nums;color:var(--muted)}
+  .main{flex:1 1 auto;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+  .ticker{position:fixed;left:0;right:0;bottom:0;background:#08111f;border-top:2px solid #1e293b;white-space:nowrap;overflow:hidden}
+  .track{display:inline-block;padding:10px 0;animation:marq 35s linear infinite}
+  .item{display:inline-block;margin:0 24px}
+  .item a{color:var(--fg);text-decoration:none}
+  .item a:hover{color:var(--accent)}
+  @keyframes marq{0%{transform:translateX(100vw)}100%{transform:translateX(-100%)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <div>Haber Manşetleri</div>
+    <div class="clock" id="clock"></div>
+  </div>
+  <div class="main">Manşetler yükleniyor…</div>
+  <div class="ticker"><div class="track" id="track"></div></div>
+</div>
+
+<script>
+const FEEDS = [
+  "https://www.trthaber.com/sondakika_articles.rss",
+  "https://www.aa.com.tr/tr/rss/default?cat=guncel",
+  "https://www.ntv.com.tr/ekonomi.rss"
+];
+const PROXY = "https://api.allorigins.win/get?url=";
+
+async function fetchRSS(url){
+  const res = await fetch(PROXY + encodeURIComponent(url));
+  if(!res.ok) throw new Error("Fetch failed");
+  const data = await res.json();
+  const xml = new window.DOMParser().parseFromString(data.contents, "text/xml");
+  return [...xml.querySelectorAll("item")];
+}
+
+function updateClock(){
+  const d=new Date();
+  const days=["Paz","Pts","Sal","Çar","Per","Cum","Cts"];
+  document.getElementById("clock").textContent =
+    days[d.getDay()]+" "+d.toLocaleDateString("tr-TR")+" — "+d.toLocaleTimeString("tr-TR");
+}
+setInterval(updateClock,1000); updateClock();
+
+(async ()=>{
+  try{
+    const allItems = [];
+    for(const feed of FEEDS){
+      const items = await fetchRSS(feed);
+      for(const it of items.slice(0,10)){
+        const t = it.querySelector("title")?.textContent?.trim() || "";
+        const l = it.querySelector("link")?.textContent?.trim() || "#";
+        if(t) allItems.push({title:t, link:l});
+      }
+    }
+    const track = document.getElementById("track");
+    track.innerHTML = allItems
+      .map(x=>`<span class='item'>• <a target='_blank' rel='noopener' href='${x.link}'>${x.title}</a></span>`)
+      .join("");
+    document.querySelector(".main").textContent = " ";
+  }catch(e){
+    document.querySelector(".main").textContent = "Haberler yüklenemedi.";
+    console.error(e);
+  }
+})();
+</script>
+</body>
+</html>
